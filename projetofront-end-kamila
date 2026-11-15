@@ -1,0 +1,610 @@
+{
+  "name": "loja-react",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
+  }
+}
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  base: "./",
+});
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loja React</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { HashRouter } from "react-router-dom";
+import App from "./App.jsx";
+import { CartProvider } from "./context/CartContext.jsx";
+import "./index.css";
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <HashRouter>
+      <CartProvider>
+        <App />
+      </CartProvider>
+    </HashRouter>
+  </React.StrictMode>
+);
+import { Routes, Route, Link } from "react-router-dom";
+import Header from "./components/Header.jsx";
+import Home from "./pages/Home.jsx";
+import Products from "./pages/Products.jsx";
+import ProductDetail from "./pages/ProductDetail.jsx";
+import Cart from "./pages/Cart.jsx";
+
+export default function App() {
+  return (
+    <>
+      <Header />
+      <main className="container">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/produtos" element={<Products />} />
+          <Route path="/produtos/:id" element={<ProductDetail />} />
+          <Route path="/carrinho" element={<Cart />} />
+          <Route
+            path="*"
+            element={
+              <div className="empty">
+                <h2>Página não encontrada</h2>
+                <Link className="btn" to="/">Voltar ao início</Link>
+              </div>
+            }
+          />
+        </Routes>
+      </main>
+      <footer className="footer">© 2026 Loja React — projeto de estudo</footer>
+    </>
+  );
+}
+const img = (seed) => `https://picsum.photos/seed/${seed}/600/420`;
+
+export const products = [
+  { id: 1, name: "Notebook Pro 15", category: "Informática", price: 4599.9, rating: 4.7, image: img("notebook"), featured: true, description: "Notebook com processador de última geração, 16 GB de RAM e SSD de 512 GB. Ideal para trabalho e estudos." },
+  { id: 2, name: "Mouse Gamer RGB", category: "Periféricos", price: 149.9, rating: 4.4, image: img("mouse"), featured: true, description: "Mouse com 7 botões programáveis, sensor óptico de 12.000 DPI e iluminação RGB." },
+  { id: 3, name: "Teclado Mecânico", category: "Periféricos", price: 329.0, rating: 4.6, image: img("keyboard"), featured: true, description: "Teclado mecânico com switches azuis, layout ABNT2 e iluminação LED." },
+  { id: 4, name: "Monitor 27\" 144Hz", category: "Informática", price: 1399.0, rating: 4.8, image: img("monitor"), featured: true, description: "Monitor Full HD de 27 polegadas com taxa de atualização de 144Hz e painel IPS." },
+  { id: 5, name: "Headset Surround", category: "Áudio", price: 259.9, rating: 4.3, image: img("headset"), featured: false, description: "Headset com som surround 7.1, microfone removível e almofadas macias." },
+  { id: 6, name: "Caixa de Som Bluetooth", category: "Áudio", price: 199.9, rating: 4.5, image: img("speaker"), featured: false, description: "Caixa portátil à prova d'água com até 12 horas de bateria." },
+  { id: 7, name: "Smartphone X12", category: "Celulares", price: 2299.0, rating: 4.6, image: img("phone"), featured: false, description: "Tela AMOLED de 6,5\", câmera tripla de 64 MP e bateria de 5000 mAh." },
+  { id: 8, name: "Carregador Turbo 65W", category: "Celulares", price: 119.9, rating: 4.2, image: img("charger"), featured: false, description: "Carregador rápido USB-C de 65W compatível com notebooks e celulares." },
+  { id: 9, name: "Webcam Full HD", category: "Periféricos", price: 189.0, rating: 4.1, image: img("webcam"), featured: false, description: "Webcam 1080p com microfone embutido e foco automático." },
+  { id: 10, name: "SSD 1TB NVMe", category: "Informática", price: 459.0, rating: 4.9, image: img("ssd"), featured: false, description: "SSD NVMe com leitura de até 3500 MB/s para acelerar seu computador." },
+];
+
+export const categories = ["Todas", ...new Set(products.map((p) => p.category))];
+
+export const formatPrice = (value) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+const CartContext = createContext(null);
+
+export function CartProvider({ children }) {
+  const [items, setItems] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("cart")) || [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("cart", JSON.stringify(items));
+    } catch {}
+  }, [items]);
+
+  const addItem = (product, qty = 1) =>
+    setItems((prev) => {
+      const found = prev.find((i) => i.id === product.id);
+      if (found) {
+        return prev.map((i) =>
+          i.id === product.id ? { ...i, qty: i.qty + qty } : i
+        );
+      }
+      return [...prev, { ...product, qty }];
+    });
+
+  const updateQty = (id, qty) =>
+    setItems((prev) =>
+      prev
+        .map((i) => (i.id === id ? { ...i, qty } : i))
+        .filter((i) => i.qty > 0)
+    );
+
+  const removeItem = (id) => setItems((prev) => prev.filter((i) => i.id !== id));
+  const clear = () => setItems([]);
+
+  const count = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
+  const total = useMemo(
+    () => items.reduce((s, i) => s + i.qty * i.price, 0),
+    [items]
+  );
+
+  return (
+    <CartContext.Provider
+      value={{ items, addItem, updateQty, removeItem, clear, count, total }}
+    >
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+export const useCart = () => useContext(CartContext);
+import { NavLink, Link } from "react-router-dom";
+import { useCart } from "../context/CartContext.jsx";
+
+export default function Header() {
+  const { count } = useCart();
+  return (
+    <header className="header">
+      <div className="container header-inner">
+        <Link to="/" className="logo">🛒 Loja React</Link>
+        <nav className="nav">
+          <NavLink to="/" end>Início</NavLink>
+          <NavLink to="/produtos">Produtos</NavLink>
+          <NavLink to="/carrinho">
+            Carrinho {count > 0 && <span className="badge">{count}</span>}
+          </NavLink>
+        </nav>
+      </div>
+    </header>
+  );
+}
+import { Link } from "react-router-dom";
+import { formatPrice } from "../data/products.js";
+import { useCart } from "../context/CartContext.jsx";
+
+export default function ProductCard({ product }) {
+  const { addItem } = useCart();
+  return (
+    <article className="card">
+      <Link to={`/produtos/${product.id}`}>
+        <img src={product.image} alt={product.name} loading="lazy" />
+      </Link>
+      <div className="card-body">
+        <span className="tag">{product.category}</span>
+        <h3>
+          <Link to={`/produtos/${product.id}`}>{product.name}</Link>
+        </h3>
+        <p className="rating">⭐ {product.rating.toFixed(1)}</p>
+        <p className="price">{formatPrice(product.price)}</p>
+        <div className="card-actions">
+          <Link className="btn btn-outline" to={`/produtos/${product.id}`}>
+            Ver detalhes
+          </Link>
+          <button className="btn" onClick={() => addItem(product)}>
+            Adicionar
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+import { Link } from "react-router-dom";
+import { products, categories } from "../data/products.js";
+import ProductCard from "../components/ProductCard.jsx";
+
+export default function Home() {
+  const featured = products.filter((p) => p.featured);
+
+  return (
+    <>
+      <section className="hero">
+        <h1>Tecnologia com os melhores preços</h1>
+        <p>Notebooks, periféricos, áudio e muito mais, tudo em um só lugar.</p>
+        <Link className="btn btn-light" to="/produtos">Ver todos os produtos</Link>
+      </section>
+
+      <section>
+        <h2 className="section-title">Categorias</h2>
+        <div className="chips">
+          {categories.filter((c) => c !== "Todas").map((c) => (
+            <Link
+              key={c}
+              className="chip"
+              to={`/produtos?categoria=${encodeURIComponent(c)}`}
+            >
+              {c}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="section-title">Destaques</h2>
+        <div className="grid">
+          {featured.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import { products, categories } from "../data/products.js";
+import ProductCard from "../components/ProductCard.jsx";
+
+export default function Products() {
+  const [params, setParams] = useSearchParams();
+  const busca = params.get("busca") || "";
+  const categoria = params.get("categoria") || "Todas";
+  const ordem = params.get("ordem") || "relevancia";
+
+  const update = (key, value) => {
+    const next = new URLSearchParams(params);
+    if (value && value !== "Todas" && value !== "relevancia") next.set(key, value);
+    else next.delete(key);
+    setParams(next, { replace: true });
+  };
+
+  const lista = useMemo(() => {
+    let r = products.filter(
+      (p) =>
+        (categoria === "Todas" || p.category === categoria) &&
+        p.name.toLowerCase().includes(busca.toLowerCase())
+    );
+    if (ordem === "menor") r = [...r].sort((a, b) => a.price - b.price);
+    if (ordem === "maior") r = [...r].sort((a, b) => b.price - a.price);
+    if (ordem === "nota") r = [...r].sort((a, b) => b.rating - a.rating);
+    if (ordem === "nome") r = [...r].sort((a, b) => a.name.localeCompare(b.name));
+    return r;
+  }, [busca, categoria, ordem]);
+
+  return (
+    <>
+      <h1 className="section-title">Produtos</h1>
+
+      <div className="filters">
+        <input
+          type="search"
+          placeholder="Buscar produto..."
+          value={busca}
+          onChange={(e) => update("busca", e.target.value)}
+        />
+        <select value={categoria} onChange={(e) => update("categoria", e.target.value)}>
+          {categories.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
+        </select>
+        <select value={ordem} onChange={(e) => update("ordem", e.target.value)}>
+          <option value="relevancia">Relevância</option>
+          <option value="menor">Menor preço</option>
+          <option value="maior">Maior preço</option>
+          <option value="nota">Melhor avaliados</option>
+          <option value="nome">Nome (A-Z)</option>
+        </select>
+      </div>
+
+      <p className="muted">{lista.length} produto(s) encontrado(s)</p>
+
+      {lista.length === 0 ? (
+        <div className="empty">Nenhum produto encontrado.</div>
+      ) : (
+        <div className="grid">
+          {lista.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { products, formatPrice } from "../data/products.js";
+import { useCart } from "../context/CartContext.jsx";
+import ProductCard from "../components/ProductCard.jsx";
+
+export default function ProductDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { addItem } = useCart();
+  const [qty, setQty] = useState(1);
+  const [added, setAdded] = useState(false);
+
+  const product = products.find((p) => p.id === Number(id));
+
+  if (!product) {
+    return (
+      <div className="empty">
+        <h2>Produto não encontrado</h2>
+        <Link className="btn" to="/produtos">Ver produtos</Link>
+      </div>
+    );
+  }
+
+  const related = products
+    .filter((p) => p.category === product.category && p.id !== product.id)
+    .slice(0, 3);
+
+  const handleAdd = () => {
+    addItem(product, qty);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
+
+  return (
+    <>
+      <button className="link-back" onClick={() => navigate(-1)}>← Voltar</button>
+
+      <section className="detail">
+        <img src={product.image} alt={product.name} />
+        <div>
+          <span className="tag">{product.category}</span>
+          <h1>{product.name}</h1>
+          <p className="rating">⭐ {product.rating.toFixed(1)} / 5</p>
+          <p className="price big">{formatPrice(product.price)}</p>
+          <p className="muted">
+            ou 10x de {formatPrice(product.price / 10)} sem juros
+          </p>
+          <p>{product.description}</p>
+
+          <div className="qty">
+            <button onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
+            <span>{qty}</span>
+            <button onClick={() => setQty((q) => q + 1)}>+</button>
+          </div>
+
+          <div className="card-actions">
+            <button className="btn" onClick={handleAdd}>
+              {added ? "✔ Adicionado!" : "Adicionar ao carrinho"}
+            </button>
+            <Link className="btn btn-outline" to="/carrinho">Ir para o carrinho</Link>
+          </div>
+        </div>
+      </section>
+
+      {related.length > 0 && (
+        <section>
+          <h2 className="section-title">Produtos relacionados</h2>
+          <div className="grid">
+            {related.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+import { Link } from "react-router-dom";
+import { useCart } from "../context/CartContext.jsx";
+import { formatPrice } from "../data/products.js";
+
+export default function Cart() {
+  const { items, updateQty, removeItem, clear, total } = useCart();
+
+  if (items.length === 0) {
+    return (
+      <div className="empty">
+        <h2>Seu carrinho está vazio</h2>
+        <Link className="btn" to="/produtos">Ver produtos</Link>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <h1 className="section-title">Carrinho</h1>
+      <div className="cart">
+        {items.map((i) => (
+          <div className="cart-item" key={i.id}>
+            <img src={i.image} alt={i.name} />
+            <div className="cart-info">
+              <Link to={`/produtos/${i.id}`}>{i.name}</Link>
+              <span className="muted">{formatPrice(i.price)}</span>
+            </div>
+            <div className="qty">
+              <button onClick={() => updateQty(i.id, i.qty - 1)}>−</button>
+              <span>{i.qty}</span>
+              <button onClick={() => updateQty(i.id, i.qty + 1)}>+</button>
+            </div>
+            <strong>{formatPrice(i.price * i.qty)}</strong>
+            <button className="remove" onClick={() => removeItem(i.id)} aria-label="Remover">✕</button>
+          </div>
+        ))}
+        <div className="cart-total">
+          <button className="btn btn-outline" onClick={clear}>Esvaziar</button>
+          <h2>Total: {formatPrice(total)}</h2>
+          <button className="btn" onClick={() => alert("Compra simulada com sucesso!")}>
+            Finalizar compra
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+:root {
+  --primary: #4f46e5;
+  --primary-dark: #4338ca;
+  --bg: #f5f6fa;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --card: #ffffff;
+  --border: #e5e7eb;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+
+.container { width: min(1100px, 92%); margin: 0 auto; }
+main.container { padding: 24px 0 48px; min-height: 70vh; }
+
+/* Header */
+.header { background: var(--primary); color: #fff; position: sticky; top: 0; z-index: 10; }
+.header-inner { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; }
+.logo { font-weight: 700; font-size: 1.25rem; }
+.nav { display: flex; gap: 20px; }
+.nav a { opacity: 0.85; padding-bottom: 2px; }
+.nav a.active, .nav a:hover { opacity: 1; border-bottom: 2px solid #fff; }
+.badge { background: #fff; color: var(--primary); border-radius: 999px; padding: 0 8px; font-size: 0.8rem; font-weight: 700; }
+
+/* Buttons */
+.btn {
+  display: inline-block; background: var(--primary); color: #fff; border: 2px solid var(--primary);
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600;
+  transition: 0.2s;
+}
+.btn:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+.btn-outline { background: transparent; color: var(--primary); }
+.btn-outline:hover { background: var(--primary); color: #fff; }
+.btn-light { background: #fff; color: var(--primary); border-color: #fff; }
+.btn-light:hover { background: #eef; color: var(--primary-dark); border-color: #eef; }
+
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, var(--primary), #7c3aed);
+  color: #fff; border-radius: 16px; padding: 56px 32px; text-align: center; margin-bottom: 32px;
+}
+.hero h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); margin-bottom: 8px; }
+.hero p { margin-bottom: 20px; opacity: 0.9; }
+
+.section-title { margin: 28px 0 16px; font-size: 1.5rem; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+
+.chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.chip { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; font-weight: 600; }
+.chip:hover { background: var(--primary); color: #fff; }
+
+/* Grid & cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 20px; }
+.card { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: flex; flex-direction: column; transition: transform .2s; }
+.card:hover { transform: translateY(-4px); }
+.card img { width: 100%; height: 170px; object-fit: cover; }
+.card-body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.card-body h3 { font-size: 1.05rem; }
+.card-actions { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; padding-top: 8px; }
+.tag { align-self: flex-start; background: #eef2ff; color: var(--primary); font-size: 0.75rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+.rating { font-size: 0.9rem; color: var(--muted); }
+.price { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+.price.big { font-size: 2rem; }
+
+/* Filters */
+.filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.filters input, .filters select {
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: #fff;
+}
+.filters input { flex: 1; min-width: 200px; }
+
+/* Detail */
+.link-back { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 1rem; margin-bottom: 16px; }
+.detail { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; background: var(--card); padding: 24px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.detail img { border-radius: 12px; width: 100%; object-fit: cover; }
+.detail > div { display: flex; flex-direction: column; gap: 12px; }
+
+.qty { display: inline-flex; align-items: center; gap: 12px; }
+.qty button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: #fff; font-size: 1.1rem; cursor: pointer; }
+.qty span { min-width: 24px; text-align: center; font-weight: 700; }
+
+/* Cart */
+.cart { background: var(--card); border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.cart-item { display: grid; grid-template-columns: 70px 1fr auto 110px 30px; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.cart-item img { width: 70px; height: 56px; object-fit: cover; border-radius: 8px; }
+.cart-info { display: flex; flex-direction: column; }
+.cart-info a { font-weight: 600; }
+.remove { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 1.1rem; }
+.cart-total { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 16px; }
+
+.empty { text-align: center; padding: 60px 20px; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+
+.footer { text-align: center; padding: 20px; color: var(--muted); border-top: 1px solid var(--border); font-size: 0.9rem; }
+
+@media (max-width: 700px) {
+  .detail { grid-template-columns: 1fr; }
+  .cart-item { grid-template-columns: 60px 1fr; }
+}
+node_modules
+dist
+.DS_Store
+# 🛒 Loja React
+
+Aplicação web de e-commerce desenvolvida em **React** com **Vite** e **React Router**.
+
+## Páginas
+
+- **Home** (`/`): banner, categorias e produtos em destaque.
+- **Listagem de Produtos** (`/produtos`): busca por nome, filtro por categoria e ordenação (preço, nota, nome). Os filtros ficam na URL e podem ser compartilhados.
+- **Visualização do Produto** (`/produtos/:id`): imagem, preço, parcelamento, descrição, seletor de quantidade e produtos relacionados.
+- **Carrinho** (`/carrinho`): alterar quantidades, remover itens e ver o total.
+
+## Funcionalidades
+
+- Roteamento com `react-router-dom` (HashRouter, compatível com GitHub Pages)
+- Carrinho global com Context API, salvo no `localStorage`
+- Layout responsivo com CSS puro
+- Tratamento de página 404 e de produto inexistente
+
+## Tecnologias
+
+React 18 · Vite · React Router 6 · CSS
+
+## Como executar
+
+```bash
+npm install
+npm run dev
+```
+
+Acesse http://localhost:5173
+
+## Build para produção
+
+```bash
+npm run build
+npm run preview
+```
+
+## Estrutura
+
+```
+src/
+├── components/   Header, ProductCard
+├── context/      CartContext
+├── data/         products.js
+├── pages/        Home, Products, ProductDetail, Cart
+├── App.jsx
+├── main.jsx
+└── index.css
+```
